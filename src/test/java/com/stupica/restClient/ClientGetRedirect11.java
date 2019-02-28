@@ -2,6 +2,7 @@ package com.stupica.restClient;
 
 
 import com.stupica.GlobalVar;
+import com.stupica.httpClient.ClientHttpBase;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -25,11 +26,13 @@ public class ClientGetRedirect11 {
         // Local variables
         String          sReturn;
         String          sUrl = "http://www.twitter.com";
-        ClientRestBase  objClient = new ClientRestBase();
+        ClientHttpBase objClient = new ClientHttpBase();
 
         // Initialization
         System.out.println("--");
         System.out.println("Test: getContentRedirect()");
+
+        //sUrl = "https://www.reporter.si/novice-najdi.xml";
 
         assertNotNull(objClient);
         objClient.setUrl(sUrl);

@@ -30,6 +30,8 @@ public class ClientHttpBase {
     protected int               iTimeoutConnect = 0;
     protected int               iTimeoutResponseRead = 0;
 
+    protected int               iRedirectMax = 2;
+
     protected int               iLengthMaxResponseLog = 1024 * 2;
 
     protected long              iCountRequest = 0L;
@@ -334,6 +336,96 @@ public class ClientHttpBase {
     }
 
 
+    protected int redirectReConnect(String asUrlRedirect, ResultHttpStream aobjResponse) {
+        // Local variables
+        int             iResult;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+
+        closeConnection();
+
+        aobjResponse.iRedirectCount++;
+        if (iRedirectMax < aobjResponse.iRedirectCount) {
+            iResult = ConstGlobal.RETURN_ERROR;
+            logger.warning("redirectReConnect(): Too Many Redirect! ResponseCode: " + aobjResponse.iResult
+                    + "\n\tUrl: " + asUrlRedirect
+                    + "\n\tRedirectCount: " + aobjResponse.iRedirectCount
+                    + "; RedirectMax: " + iRedirectMax
+                    + "\n\tReferer: " + sReferer
+                    + "\n\tiResult: " + iResult
+                    + "\n\tMsg.: Too Many Redirect -> Redirect -> .. will NOT go!");
+            return iResult;
+        }
+
+        if (GlobalVar.bIsModeVerbose) {
+            logger.info("redirectReConnect(): Redirecting to .."
+                    + " URL: " + aobjResponse.sUrlRedirectLocation
+                    + "; Count: " + aobjResponse.iRedirectCount
+                    + "; iResult: " + iResult);
+        }
+        iResult = openConnection(aobjResponse.sUrlRedirectLocation);
+        // Error
+        if (iResult != ConstGlobal.RETURN_OK) {
+            logger.severe("redirectReConnect(): Error at connecting to service!"
+                    + " URL: " + asUrlRedirect
+                    + "; iResult: " + iResult);
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            try {
+                aobjResponse.iResult = objConn.getResponseCode();
+                logger.fine("redirectReConnect(): Connection = Ok. ResponseCode: " + aobjResponse.iResult
+                        + "; iResult: " + iResult);
+            } catch (IOException ex) {
+                iResult = ConstGlobal.RETURN_ERROR;
+                logger.severe("redirectReConnect(): Error at getting HTTP Response!"
+                        + " Url: " + aobjResponse.sUrlRedirectLocation
+                        + "; iResponseHttp: " + aobjResponse.iResult
+                        + "; iResult: " + iResult
+                        + "; Msg.: " + ex.getMessage());
+            }
+            if (aobjResponse.iResult != ConstWeb.HTTP_RESP_OK) {
+                if (aobjResponse.iResult == HttpURLConnection.HTTP_MOVED_TEMP
+                        || aobjResponse.iResult == HttpURLConnection.HTTP_MOVED_PERM
+                        || aobjResponse.iResult == HttpURLConnection.HTTP_SEE_OTHER) {
+                    // Get new Location
+                    aobjResponse.sUrlRedirectLocation = objConn.getHeaderField("Location");
+                    // Redirect -> Redirect -> .. will NOT go!
+//                    iResult = ConstGlobal.RETURN_ERROR;
+//                    logger.warning("redirectReConnect(): Response = NOT Ok. ResponseCode: " + aobjResponse.iResult
+//                            + "\n\tUrl: " + asUrlRedirect
+//                            + "\n\tRedirectCount: " + aobjResponse.iRedirectCount
+//                            + "\n\tReferer: " + sReferer
+//                            + "\n\tiResult: " + iResult
+//                            + "\n\tMsg.: Redirect -> Redirect -> .. will NOT go!");
+                    iResult = redirectReConnect(aobjResponse.sUrlRedirectLocation, aobjResponse);
+                    // Check previous step
+                    if (iResult != ConstGlobal.RETURN_OK) {
+                        logger.warning("redirectReConnect(): Error in method: redirectReConnect() - LOOP!"
+                                + "\n\tUrl: " + asUrlRedirect
+                                + "\n\tRedirectUrl: " + aobjResponse.sUrlRedirectLocation
+                                + "\n\tRedirectCount: " + aobjResponse.iRedirectCount
+                                + "\n\tReferer: " + sReferer
+                                + "\n\tiResult: " + iResult);
+                    }
+                } else {
+                    // NOT Cool .. but don't bother too much with 2xx response
+                    if ((aobjResponse.iResult < ConstWeb.HTTP_RESP_OK) || (aobjResponse.iResult > (ConstWeb.HTTP_RESP_OK + 100))) {
+                        iResult = ConstGlobal.RETURN_ERROR;
+                        logger.warning("redirectReConnect(): Response = NOT Ok. ResponseCode: " + aobjResponse.iResult
+                                + "\n\tUrl: " + asUrlRedirect
+                                + "\n\tReferer: " + sReferer
+                                + "\n\tiResult: " + iResult);
+                    }
+                }
+            }
+        }
+        return iResult;
+    }
+
+
     protected ResultHttpStream getRequestForUrlAsStream(String asUrl) {
         // Local variables
         int             iResult;
@@ -397,58 +489,16 @@ public class ClientHttpBase {
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
             if (objResponse.bIsRedirect) {
-                closeConnection();
 
-                if (GlobalVar.bIsModeVerbose) {
-                    logger.info("getRequestForUrlAsStream(): Redirecting to .."
-                            + " URL: " + objResponse.sUrlRedirectLocation
-                            + "; iResult: " + iResult);
-                }
-                iResult = openConnection(objResponse.sUrlRedirectLocation);
-                // Error
-                if (iResult != ConstGlobal.RETURN_OK) {
-                    logger.severe("getRequestForUrlAsStream(): Error at connecting to service!"
-                            + " URL: " + asUrl
-                            + "; iResult: " + iResult);
-                }
-
+                iResult = redirectReConnect(objResponse.sUrlRedirectLocation, objResponse);
                 // Check previous step
-                if (iResult == ConstGlobal.RETURN_OK) {
-                    try {
-                        objResponse.iResult = objConn.getResponseCode();
-                        logger.fine("getRequestForUrlAsStream(): Connection = Ok. ResponseCode: " + objResponse.iResult
-                                + "; iResult: " + iResult);
-                    } catch (IOException ex) {
-                        iResult = ConstGlobal.RETURN_ERROR;
-                        logger.severe("getRequestForUrlAsStream(): Error at getting HTTP Response!"
-                                + " Url: " + objResponse.sUrlRedirectLocation
-                                + "; iResponseHttp: " + objResponse.iResult
-                                + "; iResult: " + iResult
-                                + "; Msg.: " + ex.getMessage());
-                    }
-                    if (objResponse.iResult != ConstWeb.HTTP_RESP_OK) {
-                        if (objResponse.iResult == HttpURLConnection.HTTP_MOVED_TEMP
-                                || objResponse.iResult == HttpURLConnection.HTTP_MOVED_PERM
-                                || objResponse.iResult == HttpURLConnection.HTTP_SEE_OTHER) {
-                            // Redirect -> Redirect -> .. will NOT go!
-                            iResult = ConstGlobal.RETURN_ERROR;
-                            logger.warning("getRequestForUrlAsStream(): Response = NOT Ok. ResponseCode: " + objResponse.iResult
-                                    + "\n\tUrl: " + asUrl
-                                    + "\n\tReferer: " + sReferer
-                                    + "\n\tiResult: " + iResult
-                                    + "\n\tMsg.: Redirect -> Redirect -> .. will NOT go!");
-                            //}
-                        } else {
-                            // NOT Cool .. but don't bother too much with 2xx response
-                            if ((objResponse.iResult < ConstWeb.HTTP_RESP_OK) || (objResponse.iResult > (ConstWeb.HTTP_RESP_OK + 100))) {
-                                iResult = ConstGlobal.RETURN_ERROR;
-                                logger.warning("getRequestForUrlAsStream(): Response = NOT Ok. ResponseCode: " + objResponse.iResult
-                                        + "\n\tUrl: " + asUrl
-                                        + "\n\tReferer: " + sReferer
-                                        + "\n\tiResult: " + iResult);
-                            }
-                        }
-                    }
+                if (iResult != ConstGlobal.RETURN_OK) {
+                    logger.severe("getRequestForUrlAsStream(): Error in method: redirectReConnect()!"
+                            + "\n\tUrl: " + asUrl
+                            + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                            + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                            + "\n\tReferer: " + sReferer
+                            + "\n\tiResult: " + iResult);
                 }
             }
         }
