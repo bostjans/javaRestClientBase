@@ -634,6 +634,9 @@ public class ClientHttpBase {
                         + " Url: " + sURL
                         + "; iResult: " + iResult
                         + "; Msg.: " + ex.getMessage());
+                if (GlobalVar.bIsModeVerbose) {
+                    ex.printStackTrace();
+                }
             } finally {
                 try {
                     if (objInBuffer != null) objInBuffer.close();
