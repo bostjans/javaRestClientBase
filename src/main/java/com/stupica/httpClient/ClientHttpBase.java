@@ -9,6 +9,7 @@ import com.stupica.core.UtilString;
 import javax.net.ssl.*;
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -592,7 +593,7 @@ public class ClientHttpBase {
     protected int readRequestData(ResultHttpStream aobjResponse) {
         // Local variables
         int                 iResult;
-        InputStreamReader objIn = null;
+        InputStreamReader   objIn = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
@@ -628,10 +629,16 @@ public class ClientHttpBase {
                 while ((inputLine = objInBuffer.readLine()) != null) {
                     content.append(inputLine);
                 }
+            } catch (SocketTimeoutException ex) {
+                iResult = ConstGlobal.RETURN_ENDOFDATA;
+                logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
+                        + "\n\tUrl: " + sURL
+                        + "; iResult: " + iResult
+                        + "; Msg.: TimeOut Exception! " + ex.getMessage());
             } catch (IOException ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
-                        + " Url: " + sURL
+                        + "\n\tUrl: " + sURL
                         + "; iResult: " + iResult
                         + "; Msg.: " + ex.getMessage());
                 if (GlobalVar.bIsModeVerbose) {
@@ -645,7 +652,14 @@ public class ClientHttpBase {
                 aobjResponse.sText = content.toString();
             }
         }
-
+        if ((iResult == ConstGlobal.RETURN_ENDOFDATA) || (iResult == ConstGlobal.RETURN_ERROR)) {
+            if (GlobalVar.bIsModeVerbose) {
+                logger.severe("readRequestData(): Data received until Error condition:"
+                        + "\n\tUrl: " + sURL
+                        + "; iResult: " + iResult
+                        + "\n\tData: " + aobjResponse.sText);
+            }
+        }
 //        if (UtilString.isEmpty(aobjResponse.sText)) {
 //            aobjResponse.sText = "{ \"responseHttp\": " + aobjResponse.iResult + " }";
 //        }
