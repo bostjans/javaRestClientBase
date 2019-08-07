@@ -634,12 +634,14 @@ public class ClientHttpBase {
                 logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
                         + "\n\tUrl: " + sURL
                         + "; iResult: " + iResult
+                        + "; DataRecv: " + content.length()
                         + "; Msg.: TimeOut Exception! " + ex.getMessage());
             } catch (IOException ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
                         + "\n\tUrl: " + sURL
                         + "; iResult: " + iResult
+                        + "; DataRecv: " + content.length()
                         + "; Msg.: " + ex.getMessage());
                 if (GlobalVar.bIsModeVerbose) {
                     ex.printStackTrace();
