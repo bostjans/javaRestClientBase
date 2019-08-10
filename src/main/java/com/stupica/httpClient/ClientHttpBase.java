@@ -324,11 +324,11 @@ public class ClientHttpBase {
 
     protected ResultHttpStream testRequestForUrl(String asUrl) {
         // Local variables
-        int             iResult;
+        //int             iResult;
         ResultHttpStream objResponse = new ResultHttpStream();
 
         // Initialization
-        iResult = ConstGlobal.RETURN_OK;
+        //iResult = ConstGlobal.RETURN_OK;
 
         objResponse = getRequestForUrlAsStream(asUrl);
         closeConnection();
@@ -523,12 +523,11 @@ public class ClientHttpBase {
 
     public String getRequestForUrl(String asUrl) {
         // Local variables
-        int             iResult;
+        int              iResult;
         ResultHttpStream objResponse = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
-        //iCountRequest++;
 
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
@@ -565,9 +564,10 @@ public class ClientHttpBase {
 
         {
             StringBuilder sMsgLog = new StringBuilder();
-            sMsgLog.append("getRequestForUrl(): Stop. ResponseCode: " + objResponse.iResult
+            sMsgLog.append("getRequestForUrl(): Stop. ResponseHttp: " + objResponse.iResult
                     + "; iResult: " + iResult
                     + "; iCountRequest: " + iCountRequest
+                    + "; iDataRead: " + objResponse.iDataRead
                     + "\n\tUrl: " + asUrl);
             sMsgLog.append("\n\tResponse[");
             if (objResponse.sText != null)
@@ -621,7 +621,7 @@ public class ClientHttpBase {
         if ((objConn != null) && (aobjResponse.objInputData != null)) {
             String              inputLine;
             StringBuffer        content = new StringBuffer();
-            BufferedReader objInBuffer = null;
+            BufferedReader      objInBuffer = null;
 
             try {
                 objIn = new InputStreamReader(aobjResponse.objInputData);
@@ -652,6 +652,7 @@ public class ClientHttpBase {
                     if (objIn != null) objIn.close();
                 } catch (IOException ex) { }
                 aobjResponse.sText = content.toString();
+                aobjResponse.iDataRead = content.length();
             }
         }
         if ((iResult == ConstGlobal.RETURN_ENDOFDATA) || (iResult == ConstGlobal.RETURN_ERROR)) {
@@ -662,9 +663,6 @@ public class ClientHttpBase {
                         + "\n\tData: " + aobjResponse.sText);
             }
         }
-//        if (UtilString.isEmpty(aobjResponse.sText)) {
-//            aobjResponse.sText = "{ \"responseHttp\": " + aobjResponse.iResult + " }";
-//        }
         return iResult;
     }
 

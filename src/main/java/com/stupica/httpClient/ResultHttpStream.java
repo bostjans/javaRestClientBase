@@ -13,5 +13,6 @@ public class ResultHttpStream extends ResultProces {
     public String      sUrlRedirectLocation = null;
     public String      sCookies = null;
 
+    public int         iDataRead = 0;
     public InputStream objInputData = null;
 }

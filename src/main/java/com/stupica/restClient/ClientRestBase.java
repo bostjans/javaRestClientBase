@@ -34,13 +34,15 @@ public class ClientRestBase extends ClientHttpBase {
                 aobjResponse.sText = "{ \"responseHttp\": " + aobjResponse.iResult + ","
                         + " \"response\": \"error\","
                         + " \"responseCode\": " + iResult + ","
+                        + " \"dataCountRead\": " + aobjResponse.iDataRead + ","
                         + " \"msg\": \"Socket TimeOut\""
                         + " }";
             }
         } else {
             if (UtilString.isEmpty(aobjResponse.sText)) {
                 aobjResponse.sText = "{ \"responseHttp\": " + aobjResponse.iResult
-                        + " \"responseCode\": " + iResult + ","
+                        + ", \"responseCode\": " + iResult
+                        + ", \"dataCountRead\": " + aobjResponse.iDataRead
                         + " }";
             }
         }
