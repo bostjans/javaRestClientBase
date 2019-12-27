@@ -6,7 +6,7 @@
 
     <groupId>com.stupica.base</groupId>
     <artifactId>restClientBase</artifactId>
-    <version>1.4.2</version>
+    <version>1.4.3</version>
     <packaging>jar</packaging>
     <name>restClientBase</name>
     <organization>
@@ -22,7 +22,7 @@
             <!-- coordinates of the required library -->
             <groupId>com.stupica.base</groupId>
             <artifactId>globalVar</artifactId>
-            <version>1.4.3</version>
+            <version>1.4.5</version>
         </dependency>
         <dependency>
             <!-- coordinates of the required library -->

@@ -1,2 +1,3 @@
 # javaRestClientBase
-Java Rest Client lib
+
+Java Rest Client library
