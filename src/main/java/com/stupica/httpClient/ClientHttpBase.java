@@ -202,7 +202,7 @@ public class ClientHttpBase {
                 logger.severe("openConnection(): Error at connecting to URL:Port!!"
                         + "\n\tURL: " + asUrl
                         + "\n\tPort: " + objUrl.getPort()
-                        + ";\n\tMsg.: " + ex.getMessage());
+                        + ";\tMsg.: " + ex.getMessage());
             }
         }
         return iResult;
@@ -267,7 +267,8 @@ public class ClientHttpBase {
                     logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
                             + " sURL: " + sURL
                             + "; iResult: " + iResult);
-                    ex.printStackTrace();
+                    if (GlobalVar.bIsModeVerbose)
+                        ex.printStackTrace();
                 }
             }
         }
@@ -315,7 +316,8 @@ public class ClientHttpBase {
                         + " sURL: " + sURL
                         + "; iResult: " + iResult
                         + "; Msg.: " + ex.getMessage());
-                ex.printStackTrace();
+                if (GlobalVar.bIsModeVerbose)
+                    ex.printStackTrace();
             }
         }
         return iResult;
@@ -332,7 +334,6 @@ public class ClientHttpBase {
 
         objResponse = getRequestForUrlAsStream(asUrl);
         closeConnection();
-
         return objResponse;
     }
 
@@ -490,7 +491,6 @@ public class ClientHttpBase {
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
             if (objResponse.bIsRedirect) {
-
                 iResult = redirectReConnect(objResponse.sUrlRedirectLocation, objResponse);
                 // Check previous step
                 if (iResult != ConstGlobal.RETURN_OK) {
@@ -515,7 +515,6 @@ public class ClientHttpBase {
                         + " Url: " + asUrl
                         + "\n\tiResult: " + iResult
                         + "; Msg.: " + ex.getMessage());
-                //} finally {
             }
         }
         return objResponse;

@@ -6,7 +6,7 @@
 
     <groupId>com.stupica.base</groupId>
     <artifactId>restClientBase</artifactId>
-    <version>1.4.3</version>
+    <version>1.4.4</version>
     <packaging>jar</packaging>
     <name>restClientBase</name>
     <organization>
@@ -22,13 +22,13 @@
             <!-- coordinates of the required library -->
             <groupId>com.stupica.base</groupId>
             <artifactId>globalVar</artifactId>
-            <version>1.4.5</version>
+            <version>[1,2)</version>
         </dependency>
         <dependency>
             <!-- coordinates of the required library -->
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>[4.13,5)</version>
             <!-- this dependency is only used for running and compiling tests -->
             <scope>test</scope>
         </dependency>
@@ -55,7 +55,7 @@
             <extension>
                 <groupId>org.apache.maven.wagon</groupId>
                 <artifactId>wagon-ftp</artifactId>
-                <version>3.3.1</version>
+                <version>[3.3,3.4)</version>
             </extension>
         </extensions>
     </build>
