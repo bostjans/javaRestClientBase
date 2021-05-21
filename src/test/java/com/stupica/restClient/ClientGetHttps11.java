@@ -31,6 +31,7 @@ public class ClientGetHttps11 {
         // Initialization
         System.out.println("--");
         System.out.println("Test: getContent()");
+        sUrl = "https://lenkotr.stupica.com/lenkoTrRest/monitor/v1/";
 
         assertNotNull(objClient);
         objClient.setUrl(sUrl);

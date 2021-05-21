@@ -203,6 +203,8 @@ public class ClientHttpBase {
                         + "\n\tURL: " + asUrl
                         + "\n\tPort: " + objUrl.getPort()
                         + ";\tMsg.: " + ex.getMessage());
+                if (GlobalVar.bIsModeVerbose)
+                    ex.printStackTrace();
             }
         }
         return iResult;
