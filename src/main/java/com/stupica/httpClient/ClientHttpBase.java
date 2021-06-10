@@ -17,6 +17,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.logging.Logger;
 
+import static com.stupica.ConstWeb.HTTP_METHOD_NAME_POST;
+
 
 public class ClientHttpBase {
 
@@ -328,11 +330,9 @@ public class ClientHttpBase {
 
     protected ResultHttpStream testRequestForUrl(String asUrl) {
         // Local variables
-        //int             iResult;
         ResultHttpStream objResponse = new ResultHttpStream();
 
         // Initialization
-        //iResult = ConstGlobal.RETURN_OK;
 
         objResponse = getRequestForUrlAsStream(asUrl);
         closeConnection();
@@ -671,14 +671,14 @@ public class ClientHttpBase {
     public String postRequestForUrl(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl("POST", asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam);
         if (objResponse == null) return null;
         else return objResponse.sText;
     }
     public ResultHttpStream postRequestForUrlAndGetResp(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl("POST", asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam);
         return objResponse;
     }
 
