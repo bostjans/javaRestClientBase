@@ -710,6 +710,7 @@ public class ClientHttpBase {
             iResult = openConnection(asMethod, asUrl, asParam);
             // Error
             if (iResult != ConstGlobal.RETURN_OK) {
+                objResponse.iResult = iResult;
                 logger.severe("postPutRequestForUrl(): Error at connecting to service!"
                         + " URL: " + asUrl
                         + "; iResult: " + iResult);
