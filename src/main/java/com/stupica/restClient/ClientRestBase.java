@@ -6,11 +6,10 @@ import com.stupica.core.UtilString;
 import com.stupica.httpClient.ClientHttpBase;
 import com.stupica.httpClient.ResultHttpStream;
 
+import java.net.HttpURLConnection;
+
 
 public class ClientRestBase extends ClientHttpBase {
-
-    //private static Logger logger = Logger.getLogger(ClientRestBase.class.getName());
-
 
     public ClientRestBase() {
         super();
@@ -19,6 +18,21 @@ public class ClientRestBase extends ClientHttpBase {
 
     protected void init() {
         super.init();
+    }
+
+
+    protected int updateConnectionParam(HttpURLConnection aobjConn) {
+        // Local variables
+        int             iResult;
+
+        // Initialization
+        iResult = super.updateConnectionParam(aobjConn);
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            aobjConn.setRequestProperty("Accept", "application/json");
+        }
+        return iResult;
     }
 
 
