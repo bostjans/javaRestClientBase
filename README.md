@@ -1,3 +1,4 @@
 # javaRestClientBase
 
-Java Rest Client library
+Java HTTP & Rest Client library.
+Using (native) Java Client.
