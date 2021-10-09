@@ -17,7 +17,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.logging.Logger;
 
-import static com.stupica.ConstWeb.HTTP_METHOD_NAME_POST;
+import static com.stupica.ConstWeb.*;
 
 
 public class ClientHttpBase {
@@ -125,10 +125,10 @@ public class ClientHttpBase {
 
 
     private int openConnection(String asUrl) {
-        return openConnection("GET", asUrl, null);
+        return openConnection(HTTP_METHOD_NAME_GET, asUrl, null, null);
     }
 
-    private int openConnection(String asMethod, String asUrl, String asParam) {
+    private int openConnection(String asMethod, String asUrl, String asParam, byte[] aarrDataPayload) {
         // Local variables
         int                 iResult;
 
@@ -186,10 +186,13 @@ public class ClientHttpBase {
         }
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
-            iResult = updateConnectionParam(objConn, asParam);
+            if (UtilString.isEmpty(asParam))
+                iResult = updateConnectionParam(objConn, aarrDataPayload);
+            else
+                iResult = updateConnectionParam(objConn, asParam);
             // Error
             if (iResult != ConstGlobal.RETURN_OK) {
-                logger.severe("openConnection(): Error at updateConnectionParam(conn, param) for service!"
+                logger.severe("openConnection(): Error at updateConnectionParam(conn, param/aarrDataPayload) for service!"
                         + " URL: " + asUrl
                         + "; iResult: " + iResult);
             }
@@ -229,7 +232,7 @@ public class ClientHttpBase {
     private int updateConnectionParam(HttpURLConnection aobjConn, String asParam) {
         // Local variables
         int         iResult;
-        byte[]      arrParams = null;
+        //byte[]      arrParams = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
@@ -237,43 +240,91 @@ public class ClientHttpBase {
         //        + " sURL: " + sURL
         //        + "\n\tParam.: " + asParam);
 
-        // Check previous step
-        if (iResult == ConstGlobal.RETURN_OK) {
-            if (asParam != null) {
-                OutputStream        objOut = null;
-                //DataOutputStream    objOut = null;
-                //OutputStreamWriter  objOsw = null;
+//        // Check previous step
+//        if (iResult == ConstGlobal.RETURN_OK) {
+//            if (asParam != null) {
+//                OutputStream        objOut = null;
+//                //DataOutputStream    objOut = null;
+//                //OutputStreamWriter  objOsw = null;
+//
+//                try {
+//                    //arrParams = asParam.getBytes("UTF-8");
+//                    arrParams = asParam.getBytes(StandardCharsets.UTF_8);
+//
+//                    //aobjConn.setRequestProperty("Referer", sReferer);
+//                    aobjConn.setRequestProperty("Content-Length", Integer.toString(arrParams.length));
+//                    aobjConn.setDoOutput(true);
+//                    objOut = new DataOutputStream(aobjConn.getOutputStream());
+//
+//                    //objOut.writeBytes(ParameterStringBuilder.getParamsString(parameters));
+//
+//                    //objOut = aobjConn.getOutputStream();
+//                    //objOsw = new OutputStreamWriter(objOut, ConstGlobal.ENCODING_UTF_8);
+//                    //objOsw.write(asParam);
+//
+//                    objOut.write(arrParams);
+//                    objOut.flush();
+//                    //objOut.writeBytes(asParam);
+//
+//                    //objOsw.flush();
+//                    //objOsw.close();
+//                    objOut.close();  //don't forget to close the OutputStream
+//                } catch (IOException ex) {
+//                    iResult = ConstGlobal.RETURN_ERROR;
+//                    logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
+//                            + " sURL: " + sURL
+//                            + "; iResult: " + iResult
+//                            + "; Msg.: " + ex.getMessage());
+//                    if (GlobalVar.bIsModeVerbose)
+//                        ex.printStackTrace();
+//                }
+//            }
+//        }
+        if (asParam != null) {
+            iResult = updateConnectionParam(aobjConn, asParam.getBytes(StandardCharsets.UTF_8));
+        }
+        return iResult;
+    }
+    private int updateConnectionParam(HttpURLConnection aobjConn, byte[] aarrData) {
+        // Local variables
+        int         iResult;
+        byte[]      arrDataPayload = aarrData;
 
-                try {
-                    //arrParams = asParam.getBytes("UTF-8");
-                    arrParams = asParam.getBytes(StandardCharsets.UTF_8);
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
 
-                    //aobjConn.setRequestProperty("Referer", sReferer);
-                    aobjConn.setRequestProperty("Content-Length", Integer.toString(arrParams.length));
-                    aobjConn.setDoOutput(true);
-                    objOut = new DataOutputStream(aobjConn.getOutputStream());
+        if (arrDataPayload != null) {
+            OutputStream        objOut = null;
+            //DataOutputStream    objOut = null;
+            //OutputStreamWriter  objOsw = null;
 
-                    //objOut.writeBytes(ParameterStringBuilder.getParamsString(parameters));
+            try {
+                //aobjConn.setRequestProperty("Referer", sReferer);
+                aobjConn.setRequestProperty("Content-Length", Integer.toString(arrDataPayload.length));
+                aobjConn.setDoOutput(true);
+                objOut = new DataOutputStream(aobjConn.getOutputStream());
 
-                    //objOut = aobjConn.getOutputStream();
-                    //objOsw = new OutputStreamWriter(objOut, ConstGlobal.ENCODING_UTF_8);
-                    //objOsw.write(asParam);
+                //objOut.writeBytes(ParameterStringBuilder.getParamsString(parameters));
 
-                    objOut.write(arrParams);
-                    objOut.flush();
-                    //objOut.writeBytes(asParam);
+                //objOut = aobjConn.getOutputStream();
+                //objOsw = new OutputStreamWriter(objOut, ConstGlobal.ENCODING_UTF_8);
+                //objOsw.write(asParam);
 
-                    //objOsw.flush();
-                    //objOsw.close();
-                    objOut.close();  //don't forget to close the OutputStream
-                } catch (IOException ex) {
-                    iResult = ConstGlobal.RETURN_ERROR;
-                    logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
-                            + " sURL: " + sURL
-                            + "; iResult: " + iResult);
-                    if (GlobalVar.bIsModeVerbose)
-                        ex.printStackTrace();
-                }
+                objOut.write(arrDataPayload);
+                objOut.flush();
+                //objOut.writeBytes(asParam);
+
+                //objOsw.flush();
+                //objOsw.close();
+                objOut.close();  //don't forget to close the OutputStream
+            } catch (IOException ex) {
+                iResult = ConstGlobal.RETURN_ERROR;
+                logger.severe("updateConnectionParam(): Error at setting HTTP Data/Payload!"
+                        + " sURL: " + sURL
+                        + "; iResult: " + iResult
+                        + "; Msg.: " + ex.getMessage());
+                if (GlobalVar.bIsModeVerbose)
+                    ex.printStackTrace();
             }
         }
         return iResult;
@@ -671,32 +722,38 @@ public class ClientHttpBase {
     public String postRequestForUrl(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam, null);
         if (objResponse == null) return null;
         else return objResponse.sText;
     }
     public ResultHttpStream postRequestForUrlAndGetResp(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, asParam, null);
+        return objResponse;
+    }
+    public ResultHttpStream postRequestForUrlAndGetResp(String asUrl, byte[] aarrDataPayload) {
+        ResultHttpStream objResponse;
+
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_POST, asUrl, null, aarrDataPayload);
         return objResponse;
     }
 
     protected String putRequestForUrl(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl("PUT", asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_PUT, asUrl, asParam, null);
         if (objResponse == null) return null;
         else return objResponse.sText;
     }
     public ResultHttpStream putRequestForUrlAndGetResp(String asUrl, String asParam) {
         ResultHttpStream objResponse;
 
-        objResponse = postPutRequestForUrl("PUT", asUrl, asParam);
+        objResponse = postPutRequestForUrl(HTTP_METHOD_NAME_PUT, asUrl, asParam, null);
         return objResponse;
     }
 
-    private ResultHttpStream postPutRequestForUrl(String asMethod, String asUrl, String asParam) {
+    private ResultHttpStream postPutRequestForUrl(String asMethod, String asUrl, String asParam, byte[] aarrDataPayload) {
         // Local variables
         int             iResult;
         ResultHttpStream objResponse = new ResultHttpStream();
@@ -707,7 +764,7 @@ public class ClientHttpBase {
 
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
-            iResult = openConnection(asMethod, asUrl, asParam);
+            iResult = openConnection(asMethod, asUrl, asParam, aarrDataPayload);
             // Error
             if (iResult != ConstGlobal.RETURN_OK) {
                 objResponse.iResult = iResult;
@@ -723,18 +780,39 @@ public class ClientHttpBase {
                 objResponse.iResult = objConn.getResponseCode();
                 logger.fine("postPutRequestForUrl(): Connection = Ok. ResponseCode: " + objResponse.iResult
                         + "; iResult: " + iResult);
+            } catch (SSLHandshakeException ex) {
+                iResult = ConstGlobal.RETURN_NOCONNECTION;
+                objResponse.iResult = iResult;
+                objResponse.sMsg.append(ex.getMessage());
+                if (ex.getCause() != null)
+                    objResponse.sMsg.append(" > ").append(ex.getCause().getMessage());
+                logger.severe("postPutRequestForUrl(): Error at getting HTTP Response - SSLHandshakeException!"
+                        + " URL: " + asUrl
+                        + "; iResponseHttp: " + objResponse.iResult
+                        + "; iResult: " + iResult
+                        + "; Msg.: " + objResponse.sMsg.toString());
+                if (GlobalVar.bIsModeVerbose)
+                    ex.printStackTrace();
             } catch (IOException ex) {
-                iResult = ConstGlobal.RETURN_ERROR;
+                iResult = ConstGlobal.RETURN_NOCONNECTION;
+                objResponse.iResult = iResult;
+                objResponse.sMsg.append(ex.getMessage());
+                if (ex.getCause() != null)
+                    objResponse.sMsg.append(" > ").append(ex.getCause().getMessage());
                 logger.severe("postPutRequestForUrl(): Error at getting HTTP Response!"
                         + " URL: " + asUrl
                         + "; iResponseHttp: " + objResponse.iResult
-                        + "; iResult: " + iResult);
+                        + "; iResult: " + iResult
+                        + "; Msg.: " + objResponse.sMsg.toString());
+                if (GlobalVar.bIsModeVerbose)
+                    ex.printStackTrace();
             }
             if (objResponse.iResult != ConstWeb.HTTP_RESP_OK) {
                 // NOT Cool ..
-                iResult = ConstGlobal.RETURN_ERROR;
-                logger.warning("postPutRequestForUrl(): Response = NOT Ok. ResponseCode: " + objResponse.iResult
-                        + "; iResult: " + iResult);
+                iResult = objResponse.getResultCodeProcess();
+                objResponse.sMsg.append("Response = NOT Ok. ResponseCode: " + objResponse.iResult);
+                objResponse.sMsg.append("; iResult: " + iResult);
+                logger.warning("postPutRequestForUrl(): " + objResponse.sMsg.toString());
             }
         }
 
@@ -743,9 +821,15 @@ public class ClientHttpBase {
             try {
                 objResponse.objInputData = objConn.getInputStream();
             } catch (IOException ex) {
-                iResult = ConstGlobal.RETURN_ERROR;
-                logger.severe("postPutRequestForUrl(): Error at getting HTTP Response (Msg.)!"
-                        + " Url: " + asUrl
+                if (iResult == ConstGlobal.RETURN_OK)
+                    iResult = ConstGlobal.RETURN_NODATA;
+                else
+                    objResponse.sMsg.append(" > ");
+                objResponse.sMsg.append(ex.getMessage());
+                if (ex.getCause() != null)
+                    objResponse.sMsg.append(" > ").append(ex.getCause().getMessage());
+                logger.severe("postPutRequestForUrl(): " + objResponse.sMsg.toString()
+                        + "; Url: " + asUrl
                         + "; iResult: " + iResult);
             }
         }

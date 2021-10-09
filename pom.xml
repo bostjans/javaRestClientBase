@@ -6,7 +6,7 @@
 
     <groupId>com.stupica.base</groupId>
     <artifactId>restClientBase</artifactId>
-    <version>1.4.6</version>
+    <version>1.4.7</version>
     <packaging>jar</packaging>
     <name>restClientBase</name>
     <organization>
@@ -32,13 +32,19 @@
             <version>[1,2)</version>
         </dependency>
         <dependency>
-            <!-- coordinates of the required library -->
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${version.junit}</version>
             <!-- this dependency is only used for running and compiling tests -->
             <scope>test</scope>
         </dependency>
+        <!--
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.49</version>
+            <scope>test</scope>
+        </dependency> -->
     </dependencies>
 
     <build>
