@@ -12,7 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.logging.Logger;
@@ -72,14 +72,16 @@ public class ClientHttpBase {
      * -> System.setProperty("sun.security.ssl.allowUnsafeRenegotiation", "true");
      */
     private void trustEveryone() {
+        SSLContext context = null;
+
         try {
-            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier(){
+            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
                 public boolean verify(String hostname, SSLSession session) {
                     logger.info("trustEveryone(): verify(): Check for Host: " + hostname);
                     return true;
                 }});
-            SSLContext context = SSLContext.getInstance("SSL");
-            //SSLContext context = SSLContext.getInstance("TLS");
+            context = SSLContext.getInstance("SSL");
+            //context = SSLContext.getInstance("TLS");
             context.init(null, new X509TrustManager[]{new X509TrustManager() {
                 public void checkClientTrusted(X509Certificate[] chain,
                                                String authType) throws CertificateException {}
@@ -91,8 +93,252 @@ public class ClientHttpBase {
             HttpsURLConnection.setDefaultSSLSocketFactory(context.getSocketFactory());
         } catch (Exception e) { // should never happen
             logger.severe("trustEveryone(): Error .. Msg.: " + e.getMessage());
-            e.printStackTrace();
+            if (GlobalVar.bIsModeVerbose)
+                e.printStackTrace();
         }
+    }
+
+
+    /**
+     * Reference info:
+     * https://stackoverflow.com/questions/21223084/how-do-i-use-an-ssl-client-certificate-with-apache-httpclient
+     *
+     * Option is also:
+     *         System.setProperty("javax.net.ssl.keyStore", "./TsaSrb_TestKorisnik.p12");
+     *         System.setProperty("javax.net.ssl.keyStorePassword", "1234");
+     *         System.setProperty("javax.net.ssl.keyStoreType", "pkcs12");
+     */
+    public int setKeyStore(InputStream aobjKeyStream, String asKeystoreType, char[] asKeyStorePassword, char[] asKeyPassword) {
+        return setKeyTrustStore(aobjKeyStream, asKeystoreType, asKeyStorePassword, asKeyPassword, null, null);
+    }
+
+    /**
+     * Reference info:
+     * https://stackoverflow.com/questions/39578653/httpsurlconnection-using-keystore-instead-of-truststore-with-websphere-liberty-p#39581419
+     */
+    public int setKeyTrustStore(InputStream aobjKeyStream, String asKeystoreType, char[] asKeyStorePassword, char[] asKeyPassword,
+                                InputStream aobjTrustStream, char[] asTrustStorePassword) {
+        // Local variables
+        int                 iResult;
+        TrustManager[]      trustManagers = null;
+        KeyManager[]        keyManagers = null;
+        SSLContext      context = null;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+
+        if (bFunctionalitySSLTrustAll) {
+            iResult = ConstGlobal.RETURN_WARNING;
+            logger.warning("setKeyTrustStore(): Functionality: SSL_TrustAll is ON! This is NOT Supported!");
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if ((aobjTrustStream != null) && (asTrustStorePassword != null)) {
+                trustManagers = buildTrustManager(aobjTrustStream, asTrustStorePassword);
+            }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if ((aobjKeyStream != null) && (asKeyStorePassword != null)) {
+                if (asKeyPassword == null) {
+                    logger.warning("setKeyTrustStore(): Key PSW NOT set! Assuming the same as KeyStorePSW.");
+                }
+                keyManagers = buildKeyManager(aobjKeyStream, asKeystoreType, asKeyStorePassword, asKeyPassword);
+            }
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if ((trustManagers != null) || (keyManagers != null))
+                try {
+                    context = SSLContext.getInstance("SSL");
+                } catch (NoSuchAlgorithmException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("setKeyTrustStore(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (context != null) {
+                try {
+                    context.init(keyManagers, trustManagers, new SecureRandom());
+                } catch (KeyManagementException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("setKeyTrustStore(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+                SSLContext.setDefault(context);
+            }
+        }
+        return iResult;
+    }
+
+
+    protected KeyManager[] buildKeyManager(InputStream aobjKeyStream, String asKeystoreType, char[] asKeyStorePassword, char[] asKeyPassword) {
+        // Local variables
+        int                 iResult;
+        char[]              sKeyPassword = asKeyPassword;
+        String              sKeystoreType = asKeystoreType;
+        KeyManagerFactory   keyFactory = null;
+        KeyManager[]        keyManagers = null;
+        KeyStore        keyStore = null;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+        if (sKeyPassword == null)
+            sKeyPassword = asKeyStorePassword;
+        if (UtilString.isEmpty(sKeystoreType))
+            sKeystoreType = KeyStore.getDefaultType();
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            try {
+                keyStore = KeyStore.getInstance(sKeystoreType);
+            } catch (KeyStoreException e) {
+                iResult = ConstGlobal.RETURN_ERROR;
+                logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                if (GlobalVar.bIsModeVerbose) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (keyStore != null)
+                try {
+                    keyStore.load(aobjKeyStream, asKeyStorePassword);
+                } catch (IOException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                } catch (NoSuchAlgorithmException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                } catch (CertificateException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (keyStore != null)
+                try {
+                    keyFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                } catch (NoSuchAlgorithmException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (keyFactory != null)
+                try {
+                    keyFactory.init(keyStore, sKeyPassword);
+                } catch (KeyStoreException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                } catch (NoSuchAlgorithmException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                } catch (UnrecoverableKeyException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildKeyManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+        }
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (keyFactory != null)
+                keyManagers = keyFactory.getKeyManagers();
+        }
+        return keyManagers;
+    }
+
+    protected TrustManager[] buildTrustManager(InputStream aobjTrustStream, char[] asTrustStorePassword) {
+        // Local variables
+        int                 iResult;
+        TrustManagerFactory trustManagerFactory = null;
+        KeyStore            trustStore = null;
+        TrustManager[]      trustManagers = null;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+
+        try {
+            trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        } catch (NoSuchAlgorithmException e) {
+            iResult = ConstGlobal.RETURN_ERROR;
+            logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+            if (GlobalVar.bIsModeVerbose)
+                e.printStackTrace();
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            try {
+                trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            } catch (KeyStoreException e) {
+                iResult = ConstGlobal.RETURN_ERROR;
+                logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+                if (GlobalVar.bIsModeVerbose)
+                    e.printStackTrace();
+            }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (trustStore != null)
+                try {
+                    trustStore.load(aobjTrustStream, asTrustStorePassword);
+                } catch (IOException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                } catch (NoSuchAlgorithmException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                } catch (CertificateException e) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        e.printStackTrace();
+                }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (trustManagerFactory != null)
+                if (trustStore != null)
+                    try {
+                        trustManagerFactory.init(trustStore);
+                    } catch (KeyStoreException e) {
+                        iResult = ConstGlobal.RETURN_ERROR;
+                        logger.severe("buildTrustManager(): Error .. Msg.: " + e.getMessage());
+                        if (GlobalVar.bIsModeVerbose)
+                            e.printStackTrace();
+                    }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (trustManagerFactory != null)
+                trustManagers = trustManagerFactory.getTrustManagers();
+        } else
+            trustManagers = null;
+        return trustManagers;
     }
 
 
@@ -142,7 +388,8 @@ public class ClientHttpBase {
             logger.severe("openConnection(): URL is wrong .."
                     + " URL: " + asUrl
                     + "; Msg.: " + ex.getMessage());
-            ex.printStackTrace();
+            if (GlobalVar.bIsModeVerbose)
+                ex.printStackTrace();
         }
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
