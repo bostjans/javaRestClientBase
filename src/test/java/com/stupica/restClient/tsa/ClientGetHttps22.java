@@ -8,10 +8,7 @@ import com.stupica.httpClient.ResultHttpStream;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -45,7 +42,7 @@ public class ClientGetHttps22 {
         // Local variables
         String          sReturn;
         //String          sUrl = "http://localhost:11080/mirror/v1";
-        String          sUrl = "https://test-tsa.ca.posta.rs:443/timestamp2";
+        String          sUrl = "https://test-tsa.ca.posta.rs/timestamp2";
         ResultHttpStream objResult = null;
         InputStream     objIsKeyStore = null;
         ClientTsaTest01 objClient = new ClientTsaTest01();
@@ -93,6 +90,9 @@ public class ClientGetHttps22 {
         }
         assertNotNull(objResult);
         System.out.println("--> Content:");
+        //System.out.print("\tContentLength: " + objResult.iContentLength);
+        //System.out.println("\tDataRead: " + objResult.iDataRead);
+        //System.out.println("\tHeader(s): " + objResult.objHeaders);
         if (UtilString.isEmpty(objResult.sText))
             System.out.println("\tN/A");
         else if (objResult.sText.length() > iLimitContent) {
@@ -100,5 +100,16 @@ public class ClientGetHttps22 {
         } else {
             System.out.println(objResult.sText);
         }
+
+        assertNotNull(objResult.sText);
+//        TimeStampResponse objResponse = null;
+//        try {
+//            objResponse = new TimeStampResponse(objResult.arrInputData);
+//        } catch (TSPException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        assertNotNull(objResponse);
     }
 }

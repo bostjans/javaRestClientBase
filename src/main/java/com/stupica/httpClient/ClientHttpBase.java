@@ -15,6 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import static com.stupica.ConstWeb.*;
@@ -80,6 +83,7 @@ public class ClientHttpBase {
                     logger.info("trustEveryone(): verify(): Check for Host: " + hostname);
                     return true;
                 }});
+            //context = SSLContext.getDefault();
             context = SSLContext.getInstance("SSL");
             //context = SSLContext.getInstance("TLS");
             context.init(null, new X509TrustManager[]{new X509TrustManager() {
@@ -152,6 +156,7 @@ public class ClientHttpBase {
         if (iResult == ConstGlobal.RETURN_OK) {
             if ((trustManagers != null) || (keyManagers != null))
                 try {
+                    //context = SSLContext.getDefault();
                     context = SSLContext.getInstance("SSL");
                 } catch (NoSuchAlgorithmException e) {
                     iResult = ConstGlobal.RETURN_ERROR;
@@ -479,54 +484,10 @@ public class ClientHttpBase {
     private int updateConnectionParam(HttpURLConnection aobjConn, String asParam) {
         // Local variables
         int         iResult;
-        //byte[]      arrParams = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
-        //logger.info("updateConnectionParam(): Start ..  -  "
-        //        + " sURL: " + sURL
-        //        + "\n\tParam.: " + asParam);
 
-//        // Check previous step
-//        if (iResult == ConstGlobal.RETURN_OK) {
-//            if (asParam != null) {
-//                OutputStream        objOut = null;
-//                //DataOutputStream    objOut = null;
-//                //OutputStreamWriter  objOsw = null;
-//
-//                try {
-//                    //arrParams = asParam.getBytes("UTF-8");
-//                    arrParams = asParam.getBytes(StandardCharsets.UTF_8);
-//
-//                    //aobjConn.setRequestProperty("Referer", sReferer);
-//                    aobjConn.setRequestProperty("Content-Length", Integer.toString(arrParams.length));
-//                    aobjConn.setDoOutput(true);
-//                    objOut = new DataOutputStream(aobjConn.getOutputStream());
-//
-//                    //objOut.writeBytes(ParameterStringBuilder.getParamsString(parameters));
-//
-//                    //objOut = aobjConn.getOutputStream();
-//                    //objOsw = new OutputStreamWriter(objOut, ConstGlobal.ENCODING_UTF_8);
-//                    //objOsw.write(asParam);
-//
-//                    objOut.write(arrParams);
-//                    objOut.flush();
-//                    //objOut.writeBytes(asParam);
-//
-//                    //objOsw.flush();
-//                    //objOsw.close();
-//                    objOut.close();  //don't forget to close the OutputStream
-//                } catch (IOException ex) {
-//                    iResult = ConstGlobal.RETURN_ERROR;
-//                    logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
-//                            + " sURL: " + sURL
-//                            + "; iResult: " + iResult
-//                            + "; Msg.: " + ex.getMessage());
-//                    if (GlobalVar.bIsModeVerbose)
-//                        ex.printStackTrace();
-//                }
-//            }
-//        }
         if (asParam != null) {
             iResult = updateConnectionParam(aobjConn, asParam.getBytes(StandardCharsets.UTF_8));
         }
@@ -752,8 +713,6 @@ public class ClientHttpBase {
         if (iResult == ConstGlobal.RETURN_OK) {
             try {
                 objResponse.iResult = objConn.getResponseCode();
-                logger.fine("getRequestForUrlAsStream(): Connection = Ok. ResponseCode: " + objResponse.iResult
-                        + "; iResult: " + iResult);
             } catch (IOException ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("getRequestForUrlAsStream(): Error at getting HTTP Response!"
@@ -804,16 +763,29 @@ public class ClientHttpBase {
             }
         }
 
+        iResult = readHeader(asUrl, objResponse);
         // Check previous step
-        //if (iResult == Constant.i_func_return_OK)
+        if (iResult != ConstGlobal.RETURN_OK) {
+            logger.severe("getRequestForUrlAsStream(): Error in method: readHeader()!"
+                    + "\n\tUrl: " + asUrl
+                    + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                    + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                    + "\n\tReferer: " + sReferer
+                    + "\n\tiResult: " + iResult);
+        }
+
+        // Check previous step
         if (objConn != null) {
             try {
-                objResponse.objInputData = objConn.getInputStream();
+                if ((objResponse.iResult < HTTP_RESP_CONTINUE) || (objResponse.iResult > (HttpURLConnection.HTTP_OK + 99)))
+                    objResponse.objInputData = objConn.getErrorStream();
+                else
+                    objResponse.objInputData = objConn.getInputStream();
             } catch (IOException ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("getRequestForUrlAsStream(): Error at getting HTTP Response (Msg.)!"
-                        + " Url: " + asUrl
-                        + "\n\tiResult: " + iResult
+                        + " iResult: " + iResult
+                        + "\n\tUrl: " + asUrl
                         + "; Msg.: " + ex.getMessage());
             }
         }
@@ -863,11 +835,14 @@ public class ClientHttpBase {
 
         {
             StringBuilder sMsgLog = new StringBuilder();
-            sMsgLog.append("getRequestForUrl(): Stop. ResponseHttp: " + objResponse.iResult
+            sMsgLog.append("getRequestForUrl(): Stop. ResponseCode: " + objResponse.iResult
+                    + "; Method: " + "GET"
+                    + "; URL: " + asUrl
                     + "; iResult: " + iResult
                     + "; iCountRequest: " + iCountRequest
-                    + "; iDataRead: " + objResponse.iDataRead
-                    + "\n\tUrl: " + asUrl);
+                    + "; ContentLength: " + objResponse.iContentLength
+                    + "; DataRead: " + objResponse.iDataRead
+                    + "; Header(s): " + objResponse.objHeaders);
             sMsgLog.append("\n\tResponse[");
             if (objResponse.sText != null)
                 sMsgLog.append(objResponse.sText.length());
@@ -888,6 +863,59 @@ public class ClientHttpBase {
         }
         return objResponse.sText;
     }
+
+
+    protected int readHeader(String asUrl, ResultHttpStream aobjResponse) {
+        // Local variables
+        int                 iResult;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+
+        // Read Header(s)
+        //
+        // Check previous step
+        if (objConn != null) {
+            StringBuilder       sTemp = new StringBuilder();
+            Map<String, String> objHeaders = new HashMap<>();
+
+            for (Map.Entry<String, List<String>> entries : objConn.getHeaderFields().entrySet()) {
+                sTemp.delete(0, sTemp.length());
+                for (String value : entries.getValue()) {
+                    if (sTemp.length() > 0) sTemp.append(", ");
+                    sTemp.append(value);
+                }
+                if (entries.getKey() == null)
+                    objHeaders.put("Response", sTemp.toString());
+                else {
+                    String sTempKey = entries.getKey();
+                    objHeaders.put(sTempKey, sTemp.toString());
+                    if (sTempKey.toLowerCase().contentEquals("content-length")) {
+                        try {
+                            aobjResponse.iContentLength = Integer.parseInt(sTemp.toString());
+                        } catch (Exception ex) {
+                            logger.severe("postPutRequestForUrl(): Content-Length number parse error!!"
+                                    + "; Value: " + sTempKey + " = " + sTemp
+                                    + "; Url: " + asUrl
+                                    + "; Msg.: " + ex.getMessage());
+                        }
+                    }
+                    if (sTempKey.toLowerCase().contentEquals("content-type")) {
+                        if (    (sTemp.toString().toLowerCase().startsWith("application/octet-stream")) ||
+                                (sTemp.toString().toLowerCase().startsWith("application/pdf")) ||
+                                (sTemp.toString().toLowerCase().startsWith("application/timestamp-reply")) )
+                            aobjResponse.bIsBinary = true;
+                    }
+                }
+            }
+            if (!objHeaders.isEmpty()) {
+                aobjResponse.objHeaders = objHeaders;
+                //System.out.println("Response: " + objResponse.objHeaders);
+            }
+        }
+        return iResult;
+    }
+
 
     protected int readRequestData(ResultHttpStream aobjResponse) {
         // Local variables
@@ -922,36 +950,86 @@ public class ClientHttpBase {
             StringBuffer        content = new StringBuffer();
             BufferedReader      objInBuffer = null;
 
-            try {
-                objIn = new InputStreamReader(aobjResponse.objInputData);
-                objInBuffer = new BufferedReader(objIn);
-                while ((inputLine = objInBuffer.readLine()) != null) {
-                    content.append(inputLine);
+            if (aobjResponse.bIsBinary) {
+                int     iDataRead = 0;
+                int     iDataDestPosition = 0;
+                byte[]  arrData = new byte[aobjResponse.iContentLength + 16];
+                byte[]  arrDataRead = new byte[1024 * 4];
+
+                while (iDataRead > -1) {
+                    try {
+                        iDataRead = aobjResponse.objInputData.read(arrDataRead);
+                        if (iDataRead != -1) {
+                            if (iDataDestPosition + iDataRead > aobjResponse.iContentLength + 15) {
+                                iResult = ConstGlobal.RETURN_TOOMUCHDATA;
+                                logger.severe("readRequestData(): TooMuch HTTP data for Response (actual data / payload)!"
+                                        + "\n\tUrl: " + sURL
+                                        + "; iResult: " + iResult
+                                        + "; Content-Length: " + aobjResponse.iContentLength
+                                        + "; DataRecv: " + iDataDestPosition
+                                        + "; DataRecvAddIn: " + iDataRead
+                                        + "; Msg.: /");
+                                break;
+                            } else {
+                                System.arraycopy(arrDataRead, 0, arrData, iDataDestPosition, iDataRead);
+                                iDataDestPosition += iDataRead;
+                            }
+                        }
+                    } catch (IOException ex) {
+                        iResult = ConstGlobal.RETURN_ERROR;
+                        logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
+                                + "\n\tUrl: " + sURL
+                                + "; iResult: " + iResult
+                                + "; DataRecv: " + content.length()
+                                + "; Msg.: " + ex.getMessage());
+                        if (GlobalVar.bIsModeVerbose)
+                            ex.printStackTrace();
+                    }
                 }
-            } catch (SocketTimeoutException ex) {
-                iResult = ConstGlobal.RETURN_ENDOFDATA;
-                logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
-                        + "\n\tUrl: " + sURL
-                        + "; iResult: " + iResult
-                        + "; DataRecv: " + content.length()
-                        + "; Msg.: TimeOut Exception! " + ex.getMessage());
-            } catch (IOException ex) {
-                iResult = ConstGlobal.RETURN_ERROR;
-                logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
-                        + "\n\tUrl: " + sURL
-                        + "; iResult: " + iResult
-                        + "; DataRecv: " + content.length()
-                        + "; Msg.: " + ex.getMessage());
-                if (GlobalVar.bIsModeVerbose) {
-                    ex.printStackTrace();
-                }
-            } finally {
                 try {
-                    if (objInBuffer != null) objInBuffer.close();
-                    if (objIn != null) objIn.close();
-                } catch (IOException ex) { }
-                aobjResponse.sText = content.toString();
-                aobjResponse.iDataRead = content.length();
+                    aobjResponse.objInputData.close();
+                } catch (IOException ex) {
+                    if (GlobalVar.bIsModeVerbose)
+                        ex.printStackTrace();
+                }
+                aobjResponse.arrInputData = arrData;
+                aobjResponse.iDataRead = iDataDestPosition;
+                aobjResponse.sText = new String(aobjResponse.arrInputData);
+            } else {
+                try {
+                    objIn = new InputStreamReader(aobjResponse.objInputData);
+                    objInBuffer = new BufferedReader(objIn);
+                    while ((inputLine = objInBuffer.readLine()) != null) {
+                        content.append(inputLine);
+                    }
+                } catch (SocketTimeoutException ex) {
+                    iResult = ConstGlobal.RETURN_ENDOFDATA;
+                    logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
+                            + "\n\tUrl: " + sURL
+                            + "; iResult: " + iResult
+                            + "; DataRecv: " + content.length()
+                            + "; Msg.: TimeOut Exception! " + ex.getMessage());
+                } catch (IOException ex) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.severe("readRequestData(): Error at getting HTTP Response (actual data / payload)!"
+                            + "\n\tUrl: " + sURL
+                            + "; iResult: " + iResult
+                            + "; DataRecv: " + content.length()
+                            + "; Msg.: " + ex.getMessage());
+                    if (GlobalVar.bIsModeVerbose)
+                        ex.printStackTrace();
+                } finally {
+                    try {
+                        if (objInBuffer != null) objInBuffer.close();
+                        if (objIn != null) objIn.close();
+                        aobjResponse.objInputData.close();
+                    } catch (IOException ex) {
+                        if (GlobalVar.bIsModeVerbose)
+                            ex.printStackTrace();
+                    }
+                    aobjResponse.sText = content.toString();
+                    aobjResponse.iDataRead = content.length();
+                }
             }
         }
         if ((iResult == ConstGlobal.RETURN_ENDOFDATA) || (iResult == ConstGlobal.RETURN_ERROR)) {
@@ -1063,10 +1141,65 @@ public class ClientHttpBase {
             }
         }
 
+        // Read Header(s)
+        //
+        // Check previous step
+//        if (objConn != null) {
+//            StringBuilder       sTemp = new StringBuilder();
+//            Map<String, String> objHeaders = new HashMap<>();
+//
+//            for (Map.Entry<String, List<String>> entries : objConn.getHeaderFields().entrySet()) {
+//                sTemp.delete(0, sTemp.length());
+//                for (String value : entries.getValue()) {
+//                    if (sTemp.length() > 0) sTemp.append(", ");
+//                    sTemp.append(value);
+//                }
+//                if (entries.getKey() == null)
+//                    objHeaders.put("Response", sTemp.toString());
+//                else {
+//                    String sTempKey = entries.getKey();
+//                    objHeaders.put(sTempKey, sTemp.toString());
+//                    if (sTempKey.toLowerCase().contentEquals("content-length")) {
+//                        try {
+//                            objResponse.iContentLength = Integer.parseInt(sTemp.toString());
+//                        } catch (Exception ex) {
+//                            logger.severe("postPutRequestForUrl(): Content-Length number parse error!!"
+//                                    + "; Value: " + sTempKey + " = " + sTemp
+//                                    + "; Url: " + asUrl
+//                                    + "; Msg.: " + ex.getMessage());
+//                        }
+//                    }
+//                    if (sTempKey.toLowerCase().contentEquals("content-type")) {
+//                        if (    (sTemp.toString().toLowerCase().startsWith("application/octet-stream")) ||
+//                                (sTemp.toString().toLowerCase().startsWith("application/pdf")) ||
+//                                (sTemp.toString().toLowerCase().startsWith("application/timestamp-reply")) )
+//                            objResponse.bIsBinary = true;
+//                    }
+//                }
+//            }
+//            if (!objHeaders.isEmpty()) {
+//                objResponse.objHeaders = objHeaders;
+//                //System.out.println("Response: " + objResponse.objHeaders);
+//            }
+//        }
+        iResult = readHeader(asUrl, objResponse);
+        // Check previous step
+        if (iResult != ConstGlobal.RETURN_OK) {
+            logger.severe("postPutRequestForUrl(): Error in method: readHeader()!"
+                    + "\n\tUrl: " + asUrl
+                    + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                    + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                    + "\n\tReferer: " + sReferer
+                    + "\n\tiResult: " + iResult);
+        }
+
         // Check previous step
         if (objConn != null) {
             try {
-                objResponse.objInputData = objConn.getInputStream();
+                if ((objResponse.iResult < HTTP_RESP_CONTINUE) || (objResponse.iResult > (HttpURLConnection.HTTP_OK + 99)))
+                    objResponse.objInputData = objConn.getErrorStream();
+                else
+                    objResponse.objInputData = objConn.getInputStream();
             } catch (IOException ex) {
                 if (iResult == ConstGlobal.RETURN_OK)
                     iResult = ConstGlobal.RETURN_NODATA;
@@ -1101,7 +1234,9 @@ public class ClientHttpBase {
                     + "; URL: " + asUrl
                     + "; iResult: " + iResult
                     + "; iCountRequest: " + iCountRequest
-                    + "\n\tUrl: " + asUrl);
+                    + "; ContentLength: " + objResponse.iContentLength
+                    + "; DataRead: " + objResponse.iDataRead
+                    + "; Header(s): " + objResponse.objHeaders);
             sMsgLog.append("\n\tResponse[");
             if (objResponse.sText != null)
                 sMsgLog.append(objResponse.sText.length());
@@ -1124,12 +1259,6 @@ public class ClientHttpBase {
                 }
             }
         }
-//        if (sResult.toLowerCase().contains("error")) {
-//            logger.warning(sTemp);
-//        } else {
-//            if (GlobalVar.bIsModeVerbose) logger.info(sTemp);
-//            else logger.fine(sTemp);
-//        }
         return objResponse;
     }
 }

@@ -1,6 +1,7 @@
 package com.stupica.restClient;
 
 
+import com.stupica.GlobalVar;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -15,7 +16,7 @@ public class ClientGet11 {
     @Before
     public void setUp() {
         System.out.println("Setup: ..");
-        //GlobalVar.bIsModeVerbose = true;
+        GlobalVar.bIsModeVerbose = true;
     }
 
 
@@ -29,6 +30,7 @@ public class ClientGet11 {
         // Initialization
         System.out.println("--");
         System.out.println("Test: getContent() - " + this.getClass().getName());
+        objClient.setFollowRedirect(true);
 
         assertNotNull(objClient);
         objClient.setUrl(sUrl);

@@ -4,6 +4,7 @@ package com.stupica.httpClient;
 import com.stupica.ResultProces;
 
 import java.io.InputStream;
+import java.util.Map;
 
 import static com.stupica.ConstGlobal.*;
 import static com.stupica.ConstWeb.*;
@@ -12,12 +13,17 @@ import static com.stupica.ConstWeb.*;
 public class ResultHttpStream extends ResultProces {
 
     public boolean     bIsRedirect = false;
+    public boolean     bIsBinary = false;
     public int         iRedirectCount = 0;
     public String      sUrlRedirectLocation = null;
     public String      sCookies = null;
 
-    public int         iDataRead = 0;
-    public InputStream objInputData = null;
+    public int          iContentLength = -1;
+    public int          iDataRead = 0;
+    public InputStream  objInputData = null;
+    public byte[]       arrInputData = null;
+
+    public Map<String, String> objHeaders = null;
 
 
     public int getResultCodeProcess() {

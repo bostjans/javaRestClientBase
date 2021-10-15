@@ -37,11 +37,11 @@
             <!-- this dependency is only used for running and compiling tests -->
             <scope>test</scope>
         </dependency>
-        <!--
-        <dependency>
+
+        <!-- <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk15on</artifactId>
-            <version>1.49</version>
+            <version>1.69</version>
             <scope>test</scope>
         </dependency> -->
     </dependencies>
