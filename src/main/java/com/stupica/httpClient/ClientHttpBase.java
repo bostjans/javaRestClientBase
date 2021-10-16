@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ public class ClientHttpBase {
     protected boolean           bIsJsonRequest = true;
     protected boolean           bFunctionalityFollowRedirect = false;
     protected boolean           bFunctionalitySSLTrustAll = false;
+    protected boolean           bReadHeaderResponse = true;
 
     protected final int         iTimeoutConnectDefault = 3600;
     protected final int         iTimeoutResponseReadDefault = 9000;
@@ -48,6 +50,8 @@ public class ClientHttpBase {
     protected String            sURL = "http://localhost:8080";
     protected String            sReferer = "http://localhost:8080";
     protected String            sOrigin = "http://localhost";
+
+    protected String            sAuthHeaderValue = null;
 
     private URL                 objUrl = null;
     private HttpURLConnection   objConn = null;
@@ -374,6 +378,23 @@ public class ClientHttpBase {
         sUserAgent = sUserAgentMozillaDef;
     }
 
+    public void setBasicAuth(String asUser, String asPsw) {
+        String sAuth;
+
+        if ((asUser == null) && (asPsw == null))
+            return;
+        else if (asPsw == null)
+            sAuth = asUser;
+        else if (asUser == null)
+            sAuth = ":" + asPsw;
+        else
+            sAuth = asUser + ":" + asPsw;
+        if (sAuth != null) {
+            byte[] encodedAuth = Base64.getEncoder().encode(sAuth.getBytes(StandardCharsets.UTF_8));
+            sAuthHeaderValue = "Basic " + new String(encodedAuth);
+        }
+    }
+
 
     private int openConnection(String asUrl) {
         return openConnection(HTTP_METHOD_NAME_GET, asUrl, null, null);
@@ -545,43 +566,43 @@ public class ClientHttpBase {
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
 
-        // Check previous step
-        if (iResult == ConstGlobal.RETURN_OK) {
-            try {
-                if (bIsJsonRequest)
-                    aobjConn.setRequestProperty("Content-Type", "application/json");
-                //aobjConn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml");
-                if (!UtilString.isEmptyTrim(sUserAgent)) {
-                    aobjConn.setRequestProperty("User-Agent", sUserAgent);
-                }
-                //aobjConn.setRequestProperty("Accept-Charset", ConstGlobal.ENCODING_UTF_8);
-
-                //logger.info("updateConnectionParam(): "
-                //        + " bAddRefererParam: " + bAddRefererParam
-                //        + "; sReferer: " + sReferer);
-                if (bAddRefererParam) {
-                    aobjConn.setRequestProperty("Referer", sReferer);
-                }
-                //logger.info("updateConnectionParam(): "
-                //        + " bAddOriginParam: " + bAddOriginParam
-                //        + "; sOrigin: " + sOrigin);
-                if (bAddOriginParam) {
-                    objConn.setRequestProperty("Origin", sOrigin);
-                    //objConn.setRequestProperty("Origin", "http://localhost:" + iPort);
-                }
-                if (bFunctionalityFollowRedirect) {
-                    objConn.setInstanceFollowRedirects(true);  // .. you still need to handle redirect manually;
-                    //HttpURLConnection.setFollowRedirects(true);
-                }
-            } catch (Exception ex) {
-                iResult = ConstGlobal.RETURN_ERROR;
-                logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
-                        + " sURL: " + sURL
-                        + "; iResult: " + iResult
-                        + "; Msg.: " + ex.getMessage());
-                if (GlobalVar.bIsModeVerbose)
-                    ex.printStackTrace();
+        try {
+            if (bIsJsonRequest)
+                aobjConn.setRequestProperty("Content-Type", "application/json");
+            //aobjConn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml");
+            if (!UtilString.isEmptyTrim(sUserAgent)) {
+                aobjConn.setRequestProperty("User-Agent", sUserAgent);
             }
+            //aobjConn.setRequestProperty("Accept-Charset", ConstGlobal.ENCODING_UTF_8);
+
+            //logger.info("updateConnectionParam(): "
+            //        + " bAddRefererParam: " + bAddRefererParam
+            //        + "; sReferer: " + sReferer);
+            if (bAddRefererParam) {
+                aobjConn.setRequestProperty("Referer", sReferer);
+            }
+            //logger.info("updateConnectionParam(): "
+            //        + " bAddOriginParam: " + bAddOriginParam
+            //        + "; sOrigin: " + sOrigin);
+            if (bAddOriginParam) {
+                objConn.setRequestProperty("Origin", sOrigin);
+                //objConn.setRequestProperty("Origin", "http://localhost:" + iPort);
+            }
+            if (bFunctionalityFollowRedirect) {
+                objConn.setInstanceFollowRedirects(true);  // .. you still need to handle redirect manually;
+                //HttpURLConnection.setFollowRedirects(true);
+            }
+
+            if (sAuthHeaderValue != null)
+                objConn.setRequestProperty("Authorization", sAuthHeaderValue);
+        } catch (Exception ex) {
+            iResult = ConstGlobal.RETURN_ERROR;
+            logger.severe("updateConnectionParam(): Error at setting HTTP Parameters!"
+                    + " sURL: " + sURL
+                    + "; iResult: " + iResult
+                    + "; Msg.: " + ex.getMessage());
+            if (GlobalVar.bIsModeVerbose)
+                ex.printStackTrace();
         }
         return iResult;
     }
@@ -763,15 +784,17 @@ public class ClientHttpBase {
             }
         }
 
-        iResult = readHeader(asUrl, objResponse);
-        // Check previous step
-        if (iResult != ConstGlobal.RETURN_OK) {
-            logger.severe("getRequestForUrlAsStream(): Error in method: readHeader()!"
-                    + "\n\tUrl: " + asUrl
-                    + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
-                    + "\n\tRedirectCount: " + objResponse.iRedirectCount
-                    + "\n\tReferer: " + sReferer
-                    + "\n\tiResult: " + iResult);
+        if (bReadHeaderResponse) {      // Read Header(s)
+            iResult = readHeader(asUrl, objResponse);
+            // Check previous step
+            if (iResult != ConstGlobal.RETURN_OK) {
+                logger.severe("getRequestForUrlAsStream(): Error in method: readHeader()!"
+                        + "\n\tUrl: " + asUrl
+                        + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                        + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                        + "\n\tReferer: " + sReferer
+                        + "\n\tiResult: " + iResult);
+            }
         }
 
         // Check previous step
@@ -1141,56 +1164,17 @@ public class ClientHttpBase {
             }
         }
 
-        // Read Header(s)
-        //
-        // Check previous step
-//        if (objConn != null) {
-//            StringBuilder       sTemp = new StringBuilder();
-//            Map<String, String> objHeaders = new HashMap<>();
-//
-//            for (Map.Entry<String, List<String>> entries : objConn.getHeaderFields().entrySet()) {
-//                sTemp.delete(0, sTemp.length());
-//                for (String value : entries.getValue()) {
-//                    if (sTemp.length() > 0) sTemp.append(", ");
-//                    sTemp.append(value);
-//                }
-//                if (entries.getKey() == null)
-//                    objHeaders.put("Response", sTemp.toString());
-//                else {
-//                    String sTempKey = entries.getKey();
-//                    objHeaders.put(sTempKey, sTemp.toString());
-//                    if (sTempKey.toLowerCase().contentEquals("content-length")) {
-//                        try {
-//                            objResponse.iContentLength = Integer.parseInt(sTemp.toString());
-//                        } catch (Exception ex) {
-//                            logger.severe("postPutRequestForUrl(): Content-Length number parse error!!"
-//                                    + "; Value: " + sTempKey + " = " + sTemp
-//                                    + "; Url: " + asUrl
-//                                    + "; Msg.: " + ex.getMessage());
-//                        }
-//                    }
-//                    if (sTempKey.toLowerCase().contentEquals("content-type")) {
-//                        if (    (sTemp.toString().toLowerCase().startsWith("application/octet-stream")) ||
-//                                (sTemp.toString().toLowerCase().startsWith("application/pdf")) ||
-//                                (sTemp.toString().toLowerCase().startsWith("application/timestamp-reply")) )
-//                            objResponse.bIsBinary = true;
-//                    }
-//                }
-//            }
-//            if (!objHeaders.isEmpty()) {
-//                objResponse.objHeaders = objHeaders;
-//                //System.out.println("Response: " + objResponse.objHeaders);
-//            }
-//        }
-        iResult = readHeader(asUrl, objResponse);
-        // Check previous step
-        if (iResult != ConstGlobal.RETURN_OK) {
-            logger.severe("postPutRequestForUrl(): Error in method: readHeader()!"
-                    + "\n\tUrl: " + asUrl
-                    + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
-                    + "\n\tRedirectCount: " + objResponse.iRedirectCount
-                    + "\n\tReferer: " + sReferer
-                    + "\n\tiResult: " + iResult);
+        if (bReadHeaderResponse) {      // Read Header(s)
+            iResult = readHeader(asUrl, objResponse);
+            // Check previous step
+            if (iResult != ConstGlobal.RETURN_OK) {
+                logger.severe("postPutRequestForUrl(): Error in method: readHeader()!"
+                        + "\n\tUrl: " + asUrl
+                        + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                        + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                        + "\n\tReferer: " + sReferer
+                        + "\n\tiResult: " + iResult);
+            }
         }
 
         // Check previous step
