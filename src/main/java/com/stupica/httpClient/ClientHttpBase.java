@@ -50,11 +50,13 @@ public class ClientHttpBase {
     protected String            sURL = "http://localhost:8080";
     protected String            sReferer = "http://localhost:8080";
     protected String            sOrigin = "http://localhost";
+    protected String            sSslContextProtocol = "SSL";    // SSL, TLS, ..
 
     protected String            sAuthHeaderValue = null;
 
     private URL                 objUrl = null;
     private HttpURLConnection   objConn = null;
+    private SSLContext          objContextSec = null;
 
     private static Logger logger = Logger.getLogger(ClientHttpBase.class.getName());
 
@@ -88,8 +90,7 @@ public class ClientHttpBase {
                     return true;
                 }});
             //context = SSLContext.getDefault();
-            context = SSLContext.getInstance("SSL");
-            //context = SSLContext.getInstance("TLS");
+            context = SSLContext.getInstance(sSslContextProtocol);
             context.init(null, new X509TrustManager[]{new X509TrustManager() {
                 public void checkClientTrusted(X509Certificate[] chain,
                                                String authType) throws CertificateException {}
@@ -130,7 +131,6 @@ public class ClientHttpBase {
         int                 iResult;
         TrustManager[]      trustManagers = null;
         KeyManager[]        keyManagers = null;
-        SSLContext      context = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
@@ -161,7 +161,7 @@ public class ClientHttpBase {
             if ((trustManagers != null) || (keyManagers != null))
                 try {
                     //context = SSLContext.getDefault();
-                    context = SSLContext.getInstance("SSL");
+                    objContextSec = SSLContext.getInstance(sSslContextProtocol);
                 } catch (NoSuchAlgorithmException e) {
                     iResult = ConstGlobal.RETURN_ERROR;
                     logger.severe("setKeyTrustStore(): Error .. Msg.: " + e.getMessage());
@@ -171,16 +171,16 @@ public class ClientHttpBase {
         }
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
-            if (context != null) {
+            if (objContextSec != null) {
                 try {
-                    context.init(keyManagers, trustManagers, new SecureRandom());
+                    objContextSec.init(keyManagers, trustManagers, new SecureRandom());
                 } catch (KeyManagementException e) {
                     iResult = ConstGlobal.RETURN_ERROR;
                     logger.severe("setKeyTrustStore(): Error .. Msg.: " + e.getMessage());
                     if (GlobalVar.bIsModeVerbose)
                         e.printStackTrace();
                 }
-                SSLContext.setDefault(context);
+                SSLContext.setDefault(objContextSec);
             }
         }
         return iResult;
@@ -403,6 +403,7 @@ public class ClientHttpBase {
     private int openConnection(String asMethod, String asUrl, String asParam, byte[] aarrDataPayload) {
         // Local variables
         int                 iResult;
+        HttpsURLConnection  objConnSecure = null;
 
         // Initialization
         iResult = ConstGlobal.RETURN_OK;
@@ -420,7 +421,12 @@ public class ClientHttpBase {
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
             try {
-                objConn = (HttpURLConnection) objUrl.openConnection();
+                if (objContextSec != null) {
+                    objConnSecure = (HttpsURLConnection) objUrl.openConnection();
+                    objConnSecure.setSSLSocketFactory(objContextSec.getSocketFactory());
+                    objConn = objConnSecure;
+                } else
+                    objConn = (HttpURLConnection) objUrl.openConnection();
             } catch (Exception ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("openConnection(): Error at opening connection!!"
@@ -550,6 +556,7 @@ public class ClientHttpBase {
                 iResult = ConstGlobal.RETURN_ERROR;
                 logger.severe("updateConnectionParam(): Error at setting HTTP Data/Payload!"
                         + " sURL: " + sURL
+                        + "; ContentLen: " + arrDataPayload.length
                         + "; iResult: " + iResult
                         + "; Msg.: " + ex.getMessage());
                 if (GlobalVar.bIsModeVerbose)
