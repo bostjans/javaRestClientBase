@@ -822,7 +822,7 @@ public class ClientHttpBase {
         return objResponse;
     }
 
-    public String getRequestForUrl(String asUrl) {
+    public ResultHttpStream getRequestForUrlAndGetResp(String asUrl) {
         // Local variables
         int              iResult;
         ResultHttpStream objResponse = null;
@@ -835,14 +835,14 @@ public class ClientHttpBase {
             objResponse = getRequestForUrlAsStream(asUrl);
             if (objResponse == null) {
                 iResult = ConstGlobal.RETURN_ERROR;
-                logger.severe("getRequestForUrl(): Error - No data! ResponseCode: UnKnown!!"
+                logger.severe("getRequestForUrlAndGetResp(): Error - No data! ResponseCode: UnKnown!!"
                         + "\n\tUrl: " + asUrl
                         + "\n\tReferer: " + sReferer
                         + "\n\tiResult: " + iResult);
             } else {
                 if (objResponse.objInputData == null) {
                     iResult = ConstGlobal.RETURN_ERROR;
-                    logger.fine("getRequestForUrl(): No data! ResponseCode: " + objResponse.iResult
+                    logger.fine("getRequestForUrlAndGetResp(): No data! ResponseCode: " + objResponse.iResult
                             + "\n\tUrl: " + asUrl
                             + "\n\tReferer: " + sReferer
                             + "\n\tiResult: " + iResult);
@@ -854,7 +854,7 @@ public class ClientHttpBase {
         if ((objConn != null) && (objResponse.objInputData != null)) {
             iResult = readRequestData(objResponse);
             if (iResult != ConstGlobal.RETURN_OK) {
-                logger.severe("getRequestForUrl(): Error in method: readRequestData()!"
+                logger.severe("getRequestForUrlAndGetResp(): Error in method: readRequestData()!"
                         + "\n\tUrl: " + asUrl
                         + "\n\tReferer: " + sReferer
                         + "\n\tiResult: " + iResult);
@@ -865,7 +865,7 @@ public class ClientHttpBase {
 
         {
             StringBuilder sMsgLog = new StringBuilder();
-            sMsgLog.append("getRequestForUrl(): Stop. ResponseCode: " + objResponse.iResult
+            sMsgLog.append("getRequestForUrlAndGetResp(): Stop. ResponseCode: " + objResponse.iResult
                     + "; Method: " + "GET"
                     + "; URL: " + asUrl
                     + "; iResult: " + iResult
@@ -891,6 +891,37 @@ public class ClientHttpBase {
                 logger.fine(sMsgLog.toString());
             }
         }
+        return objResponse;
+    }
+    public String getRequestForUrl(String asUrl) {
+        // Local variables
+        int              iResult;
+        ResultHttpStream objResponse = null;
+
+        // Initialization
+        iResult = ConstGlobal.RETURN_OK;
+
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            objResponse = getRequestForUrlAndGetResp(asUrl);
+            if (objResponse == null) {
+                iResult = ConstGlobal.RETURN_ERROR;
+                logger.severe("getRequestForUrl(): Error - No data! ResponseCode: UnKnown!!"
+                        + "\n\tUrl: " + asUrl
+                        + "\n\tReferer: " + sReferer
+                        + "\n\tiResult: " + iResult);
+            } else {
+                if (objResponse.objInputData == null) {
+                    iResult = ConstGlobal.RETURN_ERROR;
+                    logger.fine("getRequestForUrl(): No data! ResponseCode: " + objResponse.iResult
+                            + "\n\tUrl: " + asUrl
+                            + "\n\tReferer: " + sReferer
+                            + "\n\tiResult: " + iResult);
+                }
+            }
+        }
+        if (objResponse == null)
+            return null;
         return objResponse.sText;
     }
 
