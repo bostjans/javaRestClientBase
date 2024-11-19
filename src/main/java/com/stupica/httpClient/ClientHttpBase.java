@@ -403,6 +403,8 @@ public class ClientHttpBase {
     private int openConnection(String asMethod, String asUrl, String asParam, byte[] aarrDataPayload) {
         // Local variables
         int                 iResult;
+        long                iStartProcess = System.currentTimeMillis();
+        long                iStopProcess = 0L;
         HttpsURLConnection  objConnSecure = null;
 
         // Initialization
@@ -412,7 +414,7 @@ public class ClientHttpBase {
             objUrl = new URL(asUrl);
         } catch (Exception ex) {
             iResult = ConstGlobal.RETURN_ERROR;
-            logger.severe("openConnection(): URL is wrong .."
+            logger.severe("openConnection(): URL is not in proper format/structure!"
                     + " URL: " + asUrl
                     + "; Msg.: " + ex.getMessage());
             if (GlobalVar.bIsModeVerbose)
@@ -420,6 +422,9 @@ public class ClientHttpBase {
         }
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
+            if (objConn == null) {
+                setUrl(asUrl);
+            }
             try {
                 if (objContextSec != null) {
                     objConnSecure = (HttpsURLConnection) objUrl.openConnection();
@@ -429,10 +434,19 @@ public class ClientHttpBase {
                     objConn = (HttpURLConnection) objUrl.openConnection();
             } catch (Exception ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
+                iStopProcess = System.currentTimeMillis();
                 logger.severe("openConnection(): Error at opening connection!!"
                         + " URL: " + asUrl
+                        + "; ElapseTime(ms): " + (iStopProcess - iStartProcess)
                         + "; Msg.: " + ex.getMessage());
             }
+        }
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (iTimeoutConnect == 0) iTimeoutConnect = iTimeoutConnectDefault;
+            if (iTimeoutResponseRead == 0) iTimeoutResponseRead = iTimeoutResponseReadDefault;
+            objConn.setConnectTimeout(iTimeoutConnect);
+            objConn.setReadTimeout(iTimeoutResponseRead);
         }
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
@@ -445,21 +459,16 @@ public class ClientHttpBase {
                         + "; Msg.: " + ex.getMessage());
             }
         }
-        // Check previous step
-        if (iResult == ConstGlobal.RETURN_OK) {
-            if (iTimeoutConnect == 0) iTimeoutConnect = iTimeoutConnectDefault;
-            if (iTimeoutResponseRead == 0) iTimeoutResponseRead = iTimeoutResponseReadDefault;
-            objConn.setConnectTimeout(iTimeoutConnect);
-            objConn.setReadTimeout(iTimeoutResponseRead);
-        }
 
         // Check previous step
         if (iResult == ConstGlobal.RETURN_OK) {
             iResult = updateConnectionParam(objConn);
             // Error
             if (iResult != ConstGlobal.RETURN_OK) {
+                iStopProcess = System.currentTimeMillis();
                 logger.severe("openConnection(): Error at updateConnectionParam(conn) for service!"
                         + " URL: " + asUrl
+                        + "; ElapseTime(ms): " + (iStopProcess - iStartProcess)
                         + "; iResult: " + iResult);
             }
         }
@@ -471,8 +480,10 @@ public class ClientHttpBase {
                 iResult = updateConnectionParam(objConn, asParam);
             // Error
             if (iResult != ConstGlobal.RETURN_OK) {
+                iStopProcess = System.currentTimeMillis();
                 logger.severe("openConnection(): Error at updateConnectionParam(conn, param/aarrDataPayload) for service!"
                         + " URL: " + asUrl
+                        + "; ElapseTime(ms): " + (iStopProcess - iStartProcess)
                         + "; iResult: " + iResult);
             }
         }
@@ -481,11 +492,13 @@ public class ClientHttpBase {
         if (iResult == ConstGlobal.RETURN_OK) {
             try {
                 objConn.connect();
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 iResult = ConstGlobal.RETURN_ERROR;
+                iStopProcess = System.currentTimeMillis();
                 logger.severe("openConnection(): Error at connecting to URL:Port!!"
                         + "\n\tURL: " + asUrl
-                        + "\n\tPort: " + objUrl.getPort()
+                        + " :: Port: " + objUrl.getPort()
+                        + "\n\tElapseTime(ms): " + (iStopProcess - iStartProcess)
                         + ";\tMsg.: " + ex.getMessage());
                 if (GlobalVar.bIsModeVerbose)
                     ex.printStackTrace();
@@ -791,16 +804,19 @@ public class ClientHttpBase {
             }
         }
 
-        if (bReadHeaderResponse) {      // Read Header(s)
-            iResult = readHeader(asUrl, objResponse);
-            // Check previous step
-            if (iResult != ConstGlobal.RETURN_OK) {
-                logger.severe("getRequestForUrlAsStream(): Error in method: readHeader()!"
-                        + "\n\tUrl: " + asUrl
-                        + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
-                        + "\n\tRedirectCount: " + objResponse.iRedirectCount
-                        + "\n\tReferer: " + sReferer
-                        + "\n\tiResult: " + iResult);
+        // Check previous step
+        if (iResult == ConstGlobal.RETURN_OK) {
+            if (bReadHeaderResponse) {      // Read Header(s)
+                iResult = readHeader(asUrl, objResponse);
+                // Check previous step
+                if (iResult != ConstGlobal.RETURN_OK) {
+                    logger.severe("getRequestForUrlAsStream(): Error in method: readHeader()!"
+                            + "\n\tUrl: " + asUrl
+                            + "\n\tRedirectUrl: " + objResponse.sUrlRedirectLocation
+                            + "\n\tRedirectCount: " + objResponse.iRedirectCount
+                            + "\n\tReferer: " + sReferer
+                            + "\n\tiResult: " + iResult);
+                }
             }
         }
 
@@ -862,7 +878,6 @@ public class ClientHttpBase {
         }
 
         closeConnection();
-
         {
             StringBuilder sMsgLog = new StringBuilder();
             sMsgLog.append("getRequestForUrlAndGetResp(): Stop. ResponseCode: " + objResponse.iResult
@@ -886,7 +901,10 @@ public class ClientHttpBase {
                 }
             }
             if (GlobalVar.bIsModeVerbose) {
-                logger.info(sMsgLog.toString());
+                if (iResult == ConstGlobal.RETURN_OK)
+                    logger.info(sMsgLog.toString());
+                else
+                    logger.warning(sMsgLog.toString());
             } else {
                 logger.fine(sMsgLog.toString());
             }
@@ -1196,7 +1214,9 @@ public class ClientHttpBase {
             if (objResponse.iResult != ConstWeb.HTTP_RESP_OK) {
                 // NOT Cool ..
                 iResult = objResponse.getResultCodeProcess();
-                objResponse.sMsg.append("Response = NOT Ok. ResponseCode: " + objResponse.iResult);
+                if (objResponse.sMsg.length() < 1)
+                    objResponse.sMsg.append("ø");
+                objResponse.sMsg.append(" : Response = NOT Ok. ResponseCode: " + objResponse.iResult);
                 objResponse.sMsg.append("; iResult: " + iResult);
                 logger.warning("postPutRequestForUrl(): " + objResponse.sMsg.toString());
             }

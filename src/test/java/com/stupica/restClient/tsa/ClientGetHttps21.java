@@ -62,7 +62,6 @@ public class ClientGetHttps21 {
         System.out.println("Test: testTimeStamp01()");
 
         assertNotNull(objClient);
-        //assertNotNull(m_tsrg);
 
         objClient.setUrl(sUrl);
         objClient.setReferer("https://test-tsa.ca.posta.rs/timestamp");

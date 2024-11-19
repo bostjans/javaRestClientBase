@@ -31,7 +31,10 @@ public class ClientGetHttps11 {
         // Initialization
         System.out.println("--");
         System.out.println("Test: getContent()");
-        sUrl = "https://lenkotr.stupica.com/lenkoTrRest/monitor/v1/";
+        //sUrl = "https://lenkotr.stupica.com/lenkoTrRest/monitor/v1/";
+        //sUrl = "https://euez-test.ezdrav.si/servis/preveriDostopnost";
+        //sUrl = "https://tdc-euez-cas-1.cs.ezdrav.si/euezDoc/";
+        //sUrl = "https://euez-test.ezdrav.si/VS.webservices/services/PicketLinkSTS";
 
         assertNotNull(objClient);
         objClient.setUrl(sUrl);
